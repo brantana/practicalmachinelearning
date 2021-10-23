@@ -1,0 +1,89 @@
+---
+title: "PRACTICAL MACHINE LEARNING PROJECT"
+author: "Mark Brantana"
+date: "10/21/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## SUMMARY
+This project reviews a random forest method of modeling quality data from personal activity monitors with the aim of predicting skill levels of the participants by use of the training dataset by Ubulino et al. Their study also provides a testing set which we will analyze using our model.
+# R LIBRARY ENVIRONMENT
+## Load r libraries:
+```{r library, warning=FALSE,message=FALSE}
+library(ggplot2)
+library(lattice)
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+```
+## DATA DOWNLOAD AND INPUT SECTION
+```{r Input, warning=FALSE,message=FALSE}
+train<-read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",sep=",",header=TRUE)
+test<-read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",sep=",",header=TRUE)
+dim(train)
+dim(test)
+```
+## DATA CONDITIONING
+### 1. Remove near zero variables
+The Training data is simplified by eliminating insignificant data variables.
+```{r NonZeros, warning=FALSE,message=FALSE}
+NZV <- nearZeroVar(train)
+train.mod <- train[, -NZV]
+test.mod  <- test[, -NZV]
+dim(train.mod)
+dim(test.mod)
+```
+### 2. Remove variables chiefly comprised of N/A
+Further refinement is made by eliminating variable vectors with signicant NA's.
+```{r RemoveNAs, warning=FALSE,message=FALSE}
+allNA    <- sapply(train.mod, function(x) mean(is.na(x))) > 0.5
+train.mod.2 <- train.mod[, allNA==FALSE]
+test.mod.2  <- test.mod[, allNA==FALSE]
+dim(train.mod.2)
+dim(test.mod.2)
+```
+### 3. Remove identification only columns
+Finally, the data set is scrubbed of non-variable data.
+```{r FinalConditioning, warning=FALSE,message=FALSE}
+train.mod.3 <- train.mod.2[,-(1:5)]
+test.mod.3  <- test.mod.2[,-(1:5)]
+```
+### 4. Review conditioned datasets
+The final data sets are reviewed to ensure comparative data columns between the training and testing sets.
+```{r EVAL, warning=FALSE,message=FALSE}
+dim(train.mod.3)
+dim(test.mod.3)
+names(train.mod.3)
+names(test.mod.3)
+```
+## DATA VISUALIZATION
+A confusion matrix is developed using the training data to visualize the variables of greatest importance in the analysis. This was not compared against another, independent, set for comparison.
+```{r Visualization, warning=FALSE,message=FALSE}
+corMatrix <- cor(train.mod.3[, -54])
+corrplot(corMatrix, order = "FPC", method = "square",type = "lower",tl.cex = 0.5, tl.col = 'black')
+```
+## RANDOM FOREST MODEL DEVELOPMENT
+A Random Forest model is developed through which predictions are to be made.
+```{r ModelRF, warning=FALSE,message=FALSE}
+# Confusion Matrix - Training Data
+set.seed(12345)
+ctrl.train <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modFitRF <- train(classe ~ ., data=train.mod.3, method="rf", trControl=ctrl.train)
+modFitRF$finalModel
+```
+## DATA PREDICTIONS
+Predictions are made for the 20 data cases given in the test data set. The results correspond respectively to the test set data, rows numbered 1-20.
+```{r Predictions, warning=FALSE,message=FALSE}
+predict.TEST <- predict(modFitRF, newdata=test.mod.3)
+predict.TEST
+```
+## CREDITS
+1. Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6 (Cited for original base data and approach utilized in this study). [https://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har](https://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har)
+
+2. N. Nishant: Practical Machine Learning - Prediction Assignment Write-up: July 27, 2018 (Referenced for r coding example protocols only).
